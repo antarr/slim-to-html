@@ -1,0 +1,34 @@
+doctype html
+html
+  head
+    title My Rails App
+    meta charset="utf-8"
+    meta name="viewport" content="width=device-width, initial-scale=1"
+  
+  body.bg-light
+    .container.mt-5
+      .row
+        .col-12
+          h1.text-center.mb-4= @page_title
+          
+          - if @user
+            .alert.alert-success
+              p= "Welcome back, #{@user.name}!"
+              p
+                | Your last login was 
+                = @user.last_login.strftime('%B %d, %Y')
+          
+          - else
+            .alert.alert-info
+              p Please log in to continue
+              = link_to 'Login', login_path, class: 'btn btn-primary'
+          
+          .card.mt-4
+            .card-header
+              h3 Recent Posts
+            .card-body
+              - @posts.each do |post|
+                .post.mb-3
+                  h4= link_to post.title, post_path(post)
+                  p.text-muted= post.created_at.strftime('%B %d, %Y')
+                  p= truncate(post.content, length: 200)

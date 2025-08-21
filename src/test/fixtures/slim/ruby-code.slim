@@ -1,0 +1,18 @@
+div
+  - if @user.logged_in?
+    p Welcome back!
+    p= @user.name
+  - else
+    p Please log in
+  
+  ul
+    - @items.each do |item|
+      li= item.name
+      li= item.price
+  
+  = render 'shared/footer'
+  
+  - cache @product do
+    .product
+      h2= @product.title
+      p= @product.description
