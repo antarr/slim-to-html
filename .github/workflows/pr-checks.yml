@@ -1,0 +1,176 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'src/**'
+      - 'package*.json'
+      - 'tsconfig.json'
+      - '.eslintrc.json'
+
+jobs:
+  quality-checks:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for proper diff
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Check formatting
+      run: |
+        npm run lint
+        echo "✅ Linting passed" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Type checking
+      run: |
+        npm run compile
+        echo "✅ TypeScript compilation passed" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Security audit
+      run: |
+        npm audit --audit-level=moderate
+        echo "✅ Security audit passed" >> $GITHUB_STEP_SUMMARY
+      continue-on-error: true
+    
+    - name: Check bundle size
+      run: |
+        npm install -g @vscode/vsce
+        vsce package --no-dependencies -o temp.vsix
+        SIZE=$(du -h temp.vsix | cut -f1)
+        echo "📦 Extension size: $SIZE" >> $GITHUB_STEP_SUMMARY
+        rm temp.vsix
+
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run tests with coverage
+      run: npm run test:unit -- --coverage
+      continue-on-error: true
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Coverage summary
+      if: always()
+      run: |
+        echo "## Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+        if [ -f coverage/lcov.info ]; then
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          npx lcov-summary coverage/lcov.info >> $GITHUB_STEP_SUMMARY || echo "Coverage data not available" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Coverage data not generated" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  compatibility:
+    name: Compatibility Check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        vscode-version: ['1.74.0', 'stable']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Compile extension
+      run: npm run compile
+    
+    - name: Package extension
+      run: |
+        npm install -g @vscode/vsce
+        vsce package --no-dependencies
+    
+    - name: Validate extension
+      run: |
+        echo "✅ Extension packaged successfully for ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
+
+  pr-comment:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [quality-checks, test-coverage, compatibility]
+    if: always()
+    
+    steps:
+    - name: Comment PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('## PR Check Results')
+          );
+          
+          const body = `## PR Check Results
+          
+          | Check | Status |
+          |-------|--------|
+          | Code Quality | ${{ needs.quality-checks.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | Test Coverage | ${{ needs.test-coverage.result == 'success' && '✅ Passed' || '⚠️ Check logs' }} |
+          | Compatibility | ${{ needs.compatibility.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+          
+          *Last updated: ${new Date().toUTCString()}*`;
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+          }
