@@ -9,6 +9,11 @@ on:
       - 'tsconfig.json'
       - '.eslintrc.json'
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   quality-checks:
     name: Code Quality
@@ -136,41 +141,48 @@ jobs:
     steps:
     - name: Comment PR
       uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      continue-on-error: true
       with:
         script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-          
-          const botComment = comments.find(comment => 
-            comment.user.type === 'Bot' && 
-            comment.body.includes('## PR Check Results')
-          );
-          
-          const body = `## PR Check Results
-          
-          | Check | Status |
-          |-------|--------|
-          | Code Quality | ${{ needs.quality-checks.result == 'success' && '✅ Passed' || '❌ Failed' }} |
-          | Test Coverage | ${{ needs.test-coverage.result == 'success' && '✅ Passed' || '⚠️ Check logs' }} |
-          | Compatibility | ${{ needs.compatibility.result == 'success' && '✅ Passed' || '❌ Failed' }} |
-          
-          *Last updated: ${new Date().toUTCString()}*`;
-          
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body
-            });
-          } else {
-            await github.rest.issues.createComment({
+          try {
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body
             });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('## PR Check Results')
+            );
+            
+            const body = `## PR Check Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Code Quality | ${{ needs.quality-checks.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+            | Test Coverage | ${{ needs.test-coverage.result == 'success' && '✅ Passed' || '⚠️ Check logs' }} |
+            | Compatibility | ${{ needs.compatibility.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+            
+            *Last updated: ${new Date().toUTCString()}*`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+          } catch (error) {
+            console.log('Could not create PR comment:', error.message);
+            console.log('This is expected if the workflow does not have write permissions.');
           }
