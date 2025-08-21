@@ -2,7 +2,7 @@
   "name": "slim-to-erb",
   "displayName": "Slim to ERB Converter",
   "description": "Convert Slim template files to ERB format directly in VS Code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "antarrb",
   "engines": {
     "vscode": "^1.74.0"
