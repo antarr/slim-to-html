@@ -157,4 +157,6 @@ The extension is built with TypeScript and consists of:
 
 ## License
 
-MIT License - see LICENSE file for details
+This is free and unencumbered software released into the public domain - see LICENSE file for details.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this software for any purpose, commercial or non-commercial, and by any means.

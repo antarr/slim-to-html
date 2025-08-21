@@ -19,6 +19,7 @@
     "template",
     "converter"
   ],
+  "license": "Unlicense",
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
