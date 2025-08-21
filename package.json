@@ -22,12 +22,12 @@
   "license": "Unlicense",
   "repository": {
     "type": "git",
-    "url": "https://github.com/abyrd/slim-to-html.git"
+    "url": "https://github.com/antarr/slim-to-html.git"
   },
   "bugs": {
-    "url": "https://github.com/abyrd/slim-to-html/issues"
+    "url": "https://github.com/antarr/slim-to-html/issues"
   },
-  "homepage": "https://github.com/abyrd/slim-to-html#readme",
+  "homepage": "https://github.com/antarr/slim-to-html#readme",
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
